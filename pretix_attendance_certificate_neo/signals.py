@@ -1,5 +1,3 @@
-import copy
-
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.template.loader import get_template
@@ -165,12 +163,7 @@ def copy_attendance_certificate_data(sender, other, **kwargs):
         )
 
     for old_layout in other.attendance_certificate_layouts.all():
-        new_layout = copy.copy(old_layout)
-        new_layout.pk = None
-        new_layout.event = sender
-        new_layout.save()
-        if old_layout.background and old_layout.background.name:
-            new_layout.background.save("background.pdf", old_layout.background)
+        new_layout = old_layout.copy_to_event(sender, name=old_layout.name)
         copy_settings(old_layout, new_layout)
 
     if sender.organizer_id == other.organizer_id:

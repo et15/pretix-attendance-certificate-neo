@@ -1,6 +1,6 @@
 import string
 
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
@@ -86,6 +86,20 @@ class AttendanceCertificateLayout(LoggedModel):
     @property
     def scope_organizer(self):
         return self.organizer or self.event.organizer
+
+    @transaction.atomic
+    def copy_to_event(self, event, *, name):
+        layout = AttendanceCertificateLayout.objects.create(
+            event=event,
+            name=name,
+            layout=self.layout,
+            mail_subject=self.mail_subject,
+            mail_text=self.mail_text,
+        )
+        if self.background:
+            with self.background.storage.open(self.background.name, "rb") as background:
+                layout.background.save("background.pdf", background)
+        return layout
 
     @classmethod
     def visible_to(cls, event):
