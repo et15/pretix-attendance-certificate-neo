@@ -17,9 +17,5 @@ msgstr "Teilnahmebescheinigung Neo"
 msgid "Copy to this event"
 msgstr "In diese Veranstaltung kopieren"
 
-#, python-brace-format
-msgid "{name} (copy)"
-msgstr "{name} (Kopie)"
-
 msgid "The template has been copied to this event."
 msgstr "Die Vorlage wurde in diese Veranstaltung kopiert."

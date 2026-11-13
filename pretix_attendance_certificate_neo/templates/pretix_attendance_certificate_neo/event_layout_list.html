@@ -111,9 +111,10 @@
                         <form class="form-inline helper-display-inline" method="post"
                                 action="{% url "plugins:pretix_attendance_certificate_neo:layouts.copy" organizer=request.event.organizer.slug event=request.event.slug layout=row.layout.pk %}">
                             {% csrf_token %}
-                            <button class="btn btn-default btn-sm" type="submit">
+                            <button class="btn btn-default btn-sm" type="submit"
+                                    title="{% trans "Copy to this event" %}" data-toggle="tooltip"
+                                    aria-label="{% trans "Copy to this event" %}">
                                 <span class="fa fa-copy" aria-hidden="true"></span>
-                                {% trans "Copy to this event" %}
                             </button>
                         </form>
                     {% endif %}

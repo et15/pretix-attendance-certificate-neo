@@ -3,7 +3,6 @@ from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.utils.translation import gettext
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import CreateView, TemplateView, UpdateView, View
 from pretix.control.permissions import EventPermissionRequiredMixin
@@ -139,12 +138,7 @@ class EventLayoutCopyView(EventPermissionRequiredMixin, View):
         source = get_object_or_404(
             AttendanceCertificateLayout, organizer=event.organizer, pk=kwargs["layout"]
         )
-        name_format = gettext("{name} (copy)")
-        max_length = AttendanceCertificateLayout._meta.get_field("name").max_length
-        name = name_format.format(
-            name=source.name[: max_length - len(name_format.format(name=""))]
-        )
-        layout = source.copy_to_event(event, name=name)
+        layout = source.copy_to_event(event, name=source.name)
 
         activation = LayoutActivation.objects.filter(event=event, layout=source).first()
         if activation is not None:

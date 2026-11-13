@@ -170,12 +170,12 @@ def test_copy_organizer_layout_to_event(
     url = _copy_url(event, organizer_layout)
     page = logged_in_client.get(_list_url(event))
     assert url in page.rendered_content
-    assert "Copy to this event" in page.rendered_content
+    assert 'title="Copy to this event"' in page.rendered_content
     assert logged_in_client.get(url).status_code == 405
     response = logged_in_client.post(url, follow=True)
     assert response.redirect_chain == [(_list_url(event), 302)]
     copy = response.context["event_layouts"][0]["layout"]
-    assert copy.name == f"{organizer_layout.name} (copy)"
+    assert copy.name == organizer_layout.name
     assert copy.event_id == event.pk
     assert copy.organizer_id is None
     assert copy.layout == organizer_layout.layout
