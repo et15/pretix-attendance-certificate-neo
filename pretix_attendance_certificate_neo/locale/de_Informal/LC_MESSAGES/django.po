@@ -764,3 +764,9 @@ msgid ""
 msgstr ""
 "Das Zertifikat wurde entfernt. Teilnahmebescheinigungen werden nicht mehr "
 "signiert."
+
+msgid "Copy to this event"
+msgstr "In diese Veranstaltung kopieren"
+
+msgid "The template has been copied to this event."
+msgstr "Die Vorlage wurde in diese Veranstaltung kopiert."

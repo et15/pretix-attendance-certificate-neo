@@ -107,6 +107,17 @@
                     {% endif %}
                 </td>
                 <td class="text-right flip">
+                    {% if "can_change_event_settings" in request.eventpermset %}
+                        <form class="form-inline helper-display-inline" method="post"
+                                action="{% url "plugins:pretix_attendance_certificate_neo:layouts.copy" organizer=request.event.organizer.slug event=request.event.slug layout=row.layout.pk %}">
+                            {% csrf_token %}
+                            <button class="btn btn-default btn-sm" type="submit"
+                                    title="{% trans "Copy to this event" %}" data-toggle="tooltip"
+                                    aria-label="{% trans "Copy to this event" %}">
+                                <span class="fa fa-copy" aria-hidden="true"></span>
+                            </button>
+                        </form>
+                    {% endif %}
                     {% if can_edit_organizer_layouts %}
                         <a href="{% url "plugins:pretix_attendance_certificate_neo:edit" organizer=request.event.organizer.slug event=request.event.slug layout=row.layout.pk %}"
                                 class="btn btn-default btn-sm" title="{% trans "Edit layout" %}" data-toggle="tooltip"><i class="fa fa-id-card"></i></a>
