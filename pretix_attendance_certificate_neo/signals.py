@@ -296,6 +296,34 @@ def pretix_logentry_display(sender, logentry, **kwargs):
 
     if (
         logentry.action_type
+        == "pretix.plugins.pretix_attendance_certificate_neo.layout.copied"
+    ):
+        return _(
+            'The certificate template "{name}" was created as a copy of the '
+            'organizer-wide template "{source}".'
+        ).format(
+            name=logentry.parsed_data.get("name"),
+            source=logentry.parsed_data.get("source"),
+        )
+
+    if (
+        logentry.action_type
+        == "pretix.plugins.pretix_attendance_certificate_neo.layout.enabled"
+    ):
+        return _(
+            'The certificate template "{layout}" was activated for this event.'
+        ).format(layout=logentry.parsed_data.get("layout"))
+
+    if (
+        logentry.action_type
+        == "pretix.plugins.pretix_attendance_certificate_neo.layout.disabled"
+    ):
+        return _(
+            'The certificate template "{layout}" was deactivated for this event.'
+        ).format(layout=logentry.parsed_data.get("layout"))
+
+    if (
+        logentry.action_type
         == "pretix.plugins.pretix_attendance_certificate_neo.layout.deactivated"
     ):
         return _(

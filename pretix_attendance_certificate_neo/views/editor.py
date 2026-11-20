@@ -20,11 +20,14 @@ from reportlab.pdfgen import canvas
 from pretix_attendance_certificate_neo.models import (
     AttendanceCertificateLayout,
     name_conflict_error,
+    taken_names,
 )
 from pretix_attendance_certificate_neo.render import MarkdownRenderer
 
 
 class EditorView(BaseEditorView):
+    template_name = "pretix_attendance_certificate_neo/editor.html"
+
     @classmethod
     def as_view(cls, **initkwargs):
         # Skip BaseEditorView's (= EventPermissionRequiredMixin's) hard-coded
@@ -79,7 +82,9 @@ class EditorView(BaseEditorView):
         if "data" in request.POST and "name" in request.POST:
             error = name_conflict_error(self.layout, request.POST["name"])
             if error:
-                return JsonResponse({"status": "error", "error": str(error)})
+                return JsonResponse(
+                    {"status": "error", "error_code": "name_taken", "error": str(error)}
+                )
         return super().post(request, *args, **kwargs)
 
     def save_background(self, f: CachedFile):
@@ -143,6 +148,21 @@ class EditorView(BaseEditorView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["name"] = self.layout.name
+        ctx["name_check"] = {
+            "taken": taken_names(self.layout),
+            "message": str(
+                _(
+                    "Another active template of this event already uses this "
+                    "name. Please choose a different name."
+                )
+                if self.layout.event_id
+                else _(
+                    "An event in which this template is active already has an "
+                    "active template with this name. Please choose a different "
+                    "name."
+                )
+            ),
+        }
         return ctx
 
     @property

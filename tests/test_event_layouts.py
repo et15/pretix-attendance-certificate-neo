@@ -190,10 +190,10 @@ def test_copy_organizer_layout_to_event(
     organizer_layout.refresh_from_db()
     assert organizer_layout.event_id is None
     assert organizer_layout.organizer_id == event.organizer_id
-    # The copy takes the original's place in this event.
-    assert not LayoutActivation.objects.filter(
-        event=event, layout=organizer_layout
-    ).exists()
+    # The original stays active, the copy waits to be activated.
+    with scopes_disabled():
+        assert organizer_layout.active_events.filter(pk=event.pk).exists()
+    assert not LayoutActivation.objects.get(event=event, layout=copy).active
 
 
 @pytest.mark.django_db

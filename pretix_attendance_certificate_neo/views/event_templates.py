@@ -12,10 +12,12 @@ from pretix_attendance_certificate_neo.forms import OrganizerLayoutForm
 from pretix_attendance_certificate_neo.models import (
     AttendanceCertificateLayout,
     LayoutActivation,
+    activation_conflict_error,
     available_layouts,
-    same_name_layouts,
 )
 from pretix_attendance_certificate_neo.views.presale import SELF_SERVICE_SETTING
+
+LOG_PREFIX = "pretix.plugins.pretix_attendance_certificate_neo."
 
 
 class EventLayoutFormMixin:
@@ -85,36 +87,43 @@ def _require_change_permission(request):
 class EventLayoutToggleView(EventPermissionRequiredMixin, TemplateView):
     permission = ("can_change_event_settings", "can_view_orders")
 
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
         _require_change_permission(request)
+        event = request.event
         layout = get_object_or_404(
-            AttendanceCertificateLayout.visible_to(request.event),
+            AttendanceCertificateLayout.visible_to(event),
             pk=kwargs["layout"],
         )
         if layout.organizer_id:
-            now_active = not layout.active_events.filter(pk=request.event.pk).exists()
-            if now_active and same_name_layouts(request.event, layout.name, layout):
-                messages.error(
-                    request,
-                    _(
-                        'The template "{name}" cannot be activated: this event '
-                        "already has a template with the same name. Rename one "
-                        "of them first."
-                    ).format(name=layout.name),
-                )
-                return redirect(self._back())
-            if now_active:
-                layout.active_events.add(request.event)
-            else:
-                layout.active_events.remove(request.event)
+            now_active = not layout.active_events.filter(pk=event.pk).exists()
         else:
             # Event-owned templates are always available unless flagged off.
-            activation, _created = LayoutActivation.objects.get_or_create(
-                layout=layout, event=request.event
+            activation = LayoutActivation.objects.filter(
+                layout=layout, event=event
+            ).first()
+            now_active = activation is not None and not activation.active
+
+        if now_active:
+            error = activation_conflict_error(layout, event)
+            if error:
+                messages.error(request, error)
+                return redirect(self._back())
+
+        if layout.organizer_id:
+            if now_active:
+                layout.active_events.add(event)
+            else:
+                layout.active_events.remove(event)
+        else:
+            LayoutActivation.objects.update_or_create(
+                layout=layout, event=event, defaults={"active": now_active}
             )
-            now_active = not activation.active
-            activation.active = now_active
-            activation.save(update_fields=["active"])
+        event.log_action(
+            LOG_PREFIX + ("layout.enabled" if now_active else "layout.disabled"),
+            user=request.user,
+            data={"layout": layout.name, "layout_id": layout.pk},
+        )
         if now_active:
             messages.success(
                 request,
@@ -142,9 +151,10 @@ class EventLayoutToggleView(EventPermissionRequiredMixin, TemplateView):
 
 
 class EventLayoutCopyView(EventPermissionRequiredMixin, View):
-    """Copies an organizer-wide template into an event-owned one and
-    deactivates the original for this event, so the copy takes its place
-    (with the same check-in list) instead of showing up next to it."""
+    """Copies an organizer-wide template into an event-owned one. The copy
+    starts deactivated (with the original's check-in list, if any) and the
+    original keeps its activation state, so nothing changes for attendees
+    until someone deliberately switches over."""
 
     permission = "can_change_event_settings"
 
@@ -158,48 +168,44 @@ class EventLayoutCopyView(EventPermissionRequiredMixin, View):
             "plugins:pretix_attendance_certificate_neo:layouts",
             kwargs={"organizer": event.organizer.slug, "event": event.slug},
         )
-        # The original is deactivated below, so only the event's other
-        # templates can clash with the copy's name.
-        if same_name_layouts(event, source.name, exclude=source):
-            messages.error(
-                request,
-                _(
-                    'The template "{name}" cannot be copied: this event already '
-                    "has a template with the same name. Rename or delete it first."
-                ).format(name=source.name),
-            )
+        missing_background = _(
+            'The template "{name}" could not be copied because its background PDF '
+            "is missing. Please ask an administrator of your organizer to upload "
+            "the background of the organizer-wide template again."
+        ).format(name=source.name)
+        if source.background and not source.background.storage.exists(
+            source.background.name
+        ):
+            messages.error(request, missing_background)
+            return redirect(back)
+        try:
+            layout = source.copy_to_event(event, name=source.name)
+        except FileNotFoundError:
+            # Vanished between the check above and the copy.
+            messages.error(request, missing_background)
             return redirect(back)
 
-        layout = source.copy_to_event(event, name=source.name)
-        activation = LayoutActivation.objects.filter(event=event, layout=source).first()
-        if activation is not None:
-            LayoutActivation.objects.create(
-                event=event,
-                layout=layout,
-                checkin_list_id=activation.checkin_list_id,
-                active=activation.active,
-            )
-            source.active_events.remove(event)
-        layout.log_action(
-            "pretix.plugins.pretix_attendance_certificate_neo.layout.changed",
-            user=request.user,
-            data={
-                "name": layout.name,
-                "copied_from": source.pk,
-                "deactivated_source": activation is not None,
-            },
+        source_activation = LayoutActivation.objects.filter(
+            event=event, layout=source
+        ).first()
+        LayoutActivation.objects.create(
+            event=event,
+            layout=layout,
+            checkin_list_id=getattr(source_activation, "checkin_list_id", None),
+            active=False,
         )
-        if activation is not None:
-            messages.success(
-                request,
-                _(
-                    "The template has been copied to this event. The "
-                    "organizer-wide template has been deactivated for this event "
-                    "and the copy is used instead."
-                ),
-            )
-        else:
-            messages.success(request, _("The template has been copied to this event."))
+        layout.log_action(
+            LOG_PREFIX + "layout.copied",
+            user=request.user,
+            data={"name": layout.name, "source": source.name, "source_id": source.pk},
+        )
+        messages.success(
+            request,
+            _(
+                'The template "{name}" has been copied to this event. The copy is '
+                "deactivated: edit it and activate it when it is ready."
+            ).format(name=layout.name),
+        )
         return redirect(back)
 
 

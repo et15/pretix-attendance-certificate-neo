@@ -69,3 +69,59 @@ def test_event_copy_skips_activation_across_organizers(event, organizer_layout):
         event_copy_data.send(sender=new_event, other=event)
 
         assert not organizer_layout.active_events.filter(pk=new_event.pk).exists()
+
+
+# Fields copy_to_event deliberately does not take over from the source. Any
+# other field must arrive in the copy unchanged - so adding a field to the
+# model makes this test fail until copy_to_event (used by the "copy to this
+# event" button and by event copying) handles it, or it is listed here.
+NOT_COPIED = {
+    "id": "a new row",
+    "event": "set to the target event",
+    "organizer": "a copy is always event-owned",
+    "name": "passed in explicitly",
+    "background": "copied as a new, independent file (checked separately)",
+    "active_events": "activations are handled by the caller",
+}
+
+
+@pytest.mark.django_db
+def test_copy_to_event_takes_over_every_field(event, settings, tmp_path):
+    from pretix_attendance_certificate_neo.models import AttendanceCertificateLayout
+
+    settings.MEDIA_ROOT = tmp_path
+    fields = {
+        f.name
+        for f in AttendanceCertificateLayout._meta.get_fields()
+        if f.concrete or f.many_to_many
+    }
+    unknown = set(NOT_COPIED) - fields
+    assert not unknown, f"NOT_COPIED lists fields that no longer exist: {unknown}"
+
+    with scopes_disabled():
+        source = AttendanceCertificateLayout.objects.create(
+            organizer=event.organizer,
+            name="Source",
+            layout='[{"type": "textarea"}]',
+            mail_subject={"en": "Subject", "de": "Betreff"},
+            mail_text={"en": "Body", "de": "Text"},
+        )
+        source.background.save("background.pdf", ContentFile(b"%PDF-source"))
+        copy = source.copy_to_event(event, name="Copy")
+
+        for name in sorted(fields - set(NOT_COPIED)):
+            field = AttendanceCertificateLayout._meta.get_field(name)
+            assert field.value_from_object(copy) == field.value_from_object(source), (
+                f'copy_to_event does not copy "{name}" - copy it there or add it '
+                "to NOT_COPIED with a reason"
+            )
+            # A field still at its default proves nothing.
+            if field.has_default():
+                assert field.value_from_object(source) != field.get_default(), (
+                    f'set "{name}" to a non-default value in this test'
+                )
+
+        assert (copy.event, copy.organizer, copy.name) == (event, None, "Copy")
+        assert copy.background.name != source.background.name
+        with copy.background.open("rb") as f:
+            assert f.read() == b"%PDF-source"
