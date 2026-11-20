@@ -108,6 +108,54 @@ class AttendanceCertificateLayout(LoggedModel):
         return cls.objects.filter(Q(event=event) | Q(organizer=event.organizer))
 
 
+def _name_key(name):
+    """Compare template names the way an attendee reads them: ignoring case
+    and surrounding whitespace."""
+    return (name or "").strip().casefold()
+
+
+def same_name_layouts(event, name, exclude=None):
+    """Templates of the event that already use `name`: its own (active or
+    not) and the organizer-wide ones activated for it. Template names must be
+    unique within an event, otherwise attendees and admins cannot tell the
+    certificates apart."""
+    candidates = AttendanceCertificateLayout.objects.filter(
+        Q(event=event) | Q(organizer=event.organizer, active_events=event)
+    ).distinct()
+    if exclude is not None and exclude.pk:
+        candidates = candidates.exclude(pk=exclude.pk)
+    key = _name_key(name)
+    return [layout for layout in candidates if _name_key(layout.name) == key]
+
+
+def events_with_name_conflict(layout, name):
+    """Events in which giving the saved `layout` this name would clash with
+    another of the event's templates."""
+    events = [layout.event] if layout.event_id else layout.active_events.all()
+    return [event for event in events if same_name_layouts(event, name, layout)]
+
+
+def name_conflict_error(layout, name, event=None):
+    """User-facing error if `name` is taken, else None. `event` is needed for
+    an event template that is not saved yet."""
+    if layout.pk:
+        events = events_with_name_conflict(layout, name)
+    else:
+        events = [event] if event and same_name_layouts(event, name) else []
+    if not events:
+        return None
+    if layout.organizer_id:
+        return _(
+            "This template is active for events that already have a template "
+            'named "{name}": {events}. Template names must be unique within an '
+            "event."
+        ).format(name=name.strip(), events=", ".join(str(e.name) for e in events))
+    return _(
+        'This event already has a template named "{name}". Template names must '
+        "be unique within an event."
+    ).format(name=name.strip())
+
+
 class TimestampMode(models.TextChoices):
     OFF = "off", _("Off")
     OPTIONAL = "optional", _("On, if possible (sign without if unreachable)")

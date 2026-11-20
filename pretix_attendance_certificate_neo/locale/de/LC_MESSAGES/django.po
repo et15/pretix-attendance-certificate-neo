@@ -19,3 +19,18 @@ msgstr "In diese Veranstaltung kopieren"
 
 msgid "The template has been copied to this event."
 msgstr "Die Vorlage wurde in diese Veranstaltung kopiert."
+
+msgid "This template is active for events that already have a template named \"{name}\": {events}. Template names must be unique within an event."
+msgstr "Diese Vorlage ist in Veranstaltungen aktiv, die bereits eine Vorlage namens „{name}“ haben: {events}. Vorlagennamen müssen innerhalb einer Veranstaltung eindeutig sein."
+
+msgid "This event already has a template named \"{name}\". Template names must be unique within an event."
+msgstr "Diese Veranstaltung hat bereits eine Vorlage namens „{name}“. Vorlagennamen müssen innerhalb einer Veranstaltung eindeutig sein."
+
+msgid "The template \"{name}\" cannot be activated: this event already has a template with the same name. Rename one of them first."
+msgstr "Die Vorlage „{name}“ kann nicht aktiviert werden: Diese Veranstaltung hat bereits eine Vorlage mit demselben Namen. Benennen Sie zuerst eine der beiden um."
+
+msgid "The template \"{name}\" cannot be copied: this event already has a template with the same name. Rename or delete it first."
+msgstr "Die Vorlage „{name}“ kann nicht kopiert werden: Diese Veranstaltung hat bereits eine Vorlage mit demselben Namen. Benennen Sie diese zuerst um oder löschen Sie sie."
+
+msgid "The template has been copied to this event. The organizer-wide template has been deactivated for this event and the copy is used instead."
+msgstr "Die Vorlage wurde in diese Veranstaltung kopiert. Die veranstalterweite Vorlage wurde für diese Veranstaltung deaktiviert, stattdessen wird die Kopie verwendet."

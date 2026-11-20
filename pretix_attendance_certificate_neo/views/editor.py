@@ -5,6 +5,7 @@ from django.contrib.staticfiles import finders
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import default_storage
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.templatetags.static import static
 from django.utils.functional import cached_property
@@ -16,7 +17,10 @@ from pretix.control.views.pdf import BaseEditorView
 from reportlab.lib import pagesizes
 from reportlab.pdfgen import canvas
 
-from pretix_attendance_certificate_neo.models import AttendanceCertificateLayout
+from pretix_attendance_certificate_neo.models import (
+    AttendanceCertificateLayout,
+    name_conflict_error,
+)
 from pretix_attendance_certificate_neo.render import MarkdownRenderer
 
 
@@ -68,6 +72,15 @@ class EditorView(BaseEditorView):
             if self.layout and self.layout.background
             else self.get_default_background()
         )
+
+    def post(self, request, *args, **kwargs):
+        # Check a rename before BaseEditorView saves anything (background
+        # included), so a rejected save leaves the template untouched.
+        if "data" in request.POST and "name" in request.POST:
+            error = name_conflict_error(self.layout, request.POST["name"])
+            if error:
+                return JsonResponse({"status": "error", "error": str(error)})
+        return super().post(request, *args, **kwargs)
 
     def save_background(self, f: CachedFile):
         if (

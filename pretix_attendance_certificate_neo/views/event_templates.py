@@ -13,6 +13,7 @@ from pretix_attendance_certificate_neo.models import (
     AttendanceCertificateLayout,
     LayoutActivation,
     available_layouts,
+    same_name_layouts,
 )
 from pretix_attendance_certificate_neo.views.presale import SELF_SERVICE_SETTING
 
@@ -92,6 +93,16 @@ class EventLayoutToggleView(EventPermissionRequiredMixin, TemplateView):
         )
         if layout.organizer_id:
             now_active = not layout.active_events.filter(pk=request.event.pk).exists()
+            if now_active and same_name_layouts(request.event, layout.name, layout):
+                messages.error(
+                    request,
+                    _(
+                        'The template "{name}" cannot be activated: this event '
+                        "already has a template with the same name. Rename one "
+                        "of them first."
+                    ).format(name=layout.name),
+                )
+                return redirect(self._back())
             if now_active:
                 layout.active_events.add(request.event)
             else:
@@ -118,18 +129,23 @@ class EventLayoutToggleView(EventPermissionRequiredMixin, TemplateView):
                     'The template "{name}" is no longer available for this event.'
                 ).format(name=layout.name),
             )
-        return redirect(
-            reverse(
-                "plugins:pretix_attendance_certificate_neo:layouts",
-                kwargs={
-                    "organizer": request.event.organizer.slug,
-                    "event": request.event.slug,
-                },
-            )
+        return redirect(self._back())
+
+    def _back(self):
+        return reverse(
+            "plugins:pretix_attendance_certificate_neo:layouts",
+            kwargs={
+                "organizer": self.request.event.organizer.slug,
+                "event": self.request.event.slug,
+            },
         )
 
 
 class EventLayoutCopyView(EventPermissionRequiredMixin, View):
+    """Copies an organizer-wide template into an event-owned one and
+    deactivates the original for this event, so the copy takes its place
+    (with the same check-in list) instead of showing up next to it."""
+
     permission = "can_change_event_settings"
 
     @transaction.atomic
@@ -138,8 +154,23 @@ class EventLayoutCopyView(EventPermissionRequiredMixin, View):
         source = get_object_or_404(
             AttendanceCertificateLayout, organizer=event.organizer, pk=kwargs["layout"]
         )
-        layout = source.copy_to_event(event, name=source.name)
+        back = reverse(
+            "plugins:pretix_attendance_certificate_neo:layouts",
+            kwargs={"organizer": event.organizer.slug, "event": event.slug},
+        )
+        # The original is deactivated below, so only the event's other
+        # templates can clash with the copy's name.
+        if same_name_layouts(event, source.name, exclude=source):
+            messages.error(
+                request,
+                _(
+                    'The template "{name}" cannot be copied: this event already '
+                    "has a template with the same name. Rename or delete it first."
+                ).format(name=source.name),
+            )
+            return redirect(back)
 
+        layout = source.copy_to_event(event, name=source.name)
         activation = LayoutActivation.objects.filter(event=event, layout=source).first()
         if activation is not None:
             LayoutActivation.objects.create(
@@ -148,17 +179,28 @@ class EventLayoutCopyView(EventPermissionRequiredMixin, View):
                 checkin_list_id=activation.checkin_list_id,
                 active=activation.active,
             )
+            source.active_events.remove(event)
         layout.log_action(
             "pretix.plugins.pretix_attendance_certificate_neo.layout.changed",
             user=request.user,
-            data={"name": layout.name, "copied_from": source.pk},
+            data={
+                "name": layout.name,
+                "copied_from": source.pk,
+                "deactivated_source": activation is not None,
+            },
         )
-        messages.success(request, _("The template has been copied to this event."))
-        return redirect(
-            "plugins:pretix_attendance_certificate_neo:layouts",
-            organizer=event.organizer.slug,
-            event=event.slug,
-        )
+        if activation is not None:
+            messages.success(
+                request,
+                _(
+                    "The template has been copied to this event. The "
+                    "organizer-wide template has been deactivated for this event "
+                    "and the copy is used instead."
+                ),
+            )
+        else:
+            messages.success(request, _("The template has been copied to this event."))
+        return redirect(back)
 
 
 class EventLayoutAssignView(EventPermissionRequiredMixin, TemplateView):
