@@ -4,58 +4,6 @@
 {% block content %}
     <h1>{% trans "Certificate of attendance templates" %}</h1>
 
-    <h3>{% trans "Who gets which certificate" %}</h3>
-    <p>
-        {% blocktrans trimmed %}
-            Tie a template to a check-in list (for example "Passed the course") so only attendees
-            checked in on that list are eligible for it. Attendees can be eligible for several
-            templates.
-        {% endblocktrans %}
-    </p>
-    <form method="post" class="form-horizontal"
-            action="{% url "plugins:pretix_attendance_certificate_neo:layouts.assign" organizer=request.event.organizer.slug event=request.event.slug %}">
-        {% csrf_token %}
-        <table class="table table-condensed table-hover">
-            <thead>
-            <tr>
-                <th>{% trans "Template" %}</th>
-                <th>{% trans "Only for attendees checked in on" %}</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for a in assignments %}
-                <tr>
-                    <td>{{ a.layout.name }}</td>
-                    <td>
-                        <select name="list_{{ a.layout.pk }}" class="form-control">
-                            <option value="">{% trans "Everyone" %}</option>
-                            {% for c in checkin_lists %}
-                                <option value="{{ c.pk }}" {% if c.pk == a.checkin_list_id %}selected{% endif %}>{{ c.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </td>
-                </tr>
-            {% empty %}
-                <tr>
-                    <td colspan="2">{% trans "No templates are available for this event yet." %}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        <div class="checkbox">
-            <label>
-                <input type="checkbox" name="self_service" {% if self_service %}checked{% endif %}>
-                {% trans "Let attendees download their certificate from their order page" %}
-            </label>
-            <p class="help-block">
-                {% trans "Only for paid orders, after the event is over, and only for attendees who were checked in on any check-in list. Templates tied to a check-in list additionally need a check-in on that list." %}
-            </p>
-        </div>
-        {% if "can_change_event_settings" in request.eventpermset %}
-            <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
-        {% endif %}
-    </form>
-
     <h3>{% trans "Organizer-wide templates" %}</h3>
     <p>
         {% blocktrans trimmed %}
@@ -186,4 +134,56 @@
         {% endfor %}
         </tbody>
     </table>
+
+    <h3>{% trans "Who gets which certificate" %}</h3>
+    <p>
+        {% blocktrans trimmed %}
+            Tie a template to a check-in list (for example "Passed the course") so only attendees
+            checked in on that list are eligible for it. Attendees can be eligible for several
+            templates.
+        {% endblocktrans %}
+    </p>
+    <form method="post" class="form-horizontal"
+            action="{% url "plugins:pretix_attendance_certificate_neo:layouts.assign" organizer=request.event.organizer.slug event=request.event.slug %}">
+        {% csrf_token %}
+        <table class="table table-condensed table-hover">
+            <thead>
+            <tr>
+                <th>{% trans "Template" %}</th>
+                <th>{% trans "Only for attendees checked in on" %}</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for a in assignments %}
+                <tr>
+                    <td>{{ a.layout.name }}</td>
+                    <td>
+                        <select name="list_{{ a.layout.pk }}" class="form-control">
+                            <option value="">{% trans "Everyone" %}</option>
+                            {% for c in checkin_lists %}
+                                <option value="{{ c.pk }}" {% if c.pk == a.checkin_list_id %}selected{% endif %}>{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="2">{% trans "No templates are available for this event yet." %}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="checkbox">
+            <label>
+                <input type="checkbox" name="self_service" {% if self_service %}checked{% endif %}>
+                {% trans "Let attendees download their certificate from their order page" %}
+            </label>
+            <p class="help-block">
+                {% trans "Only for paid orders, after the event is over, and only for attendees who were checked in on any check-in list. Templates tied to a check-in list additionally need a check-in on that list." %}
+            </p>
+        </div>
+        {% if "can_change_event_settings" in request.eventpermset %}
+            <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+        {% endif %}
+    </form>
 {% endblock %}
