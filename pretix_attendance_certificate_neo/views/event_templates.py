@@ -1,9 +1,10 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from django.views.generic import CreateView, TemplateView, UpdateView
+from django.views.generic import CreateView, TemplateView, UpdateView, View
 from pretix.control.permissions import EventPermissionRequiredMixin
 from pretix.helpers.compat import CompatDeleteView
 
@@ -125,6 +126,38 @@ class EventLayoutToggleView(EventPermissionRequiredMixin, TemplateView):
                     "event": request.event.slug,
                 },
             )
+        )
+
+
+class EventLayoutCopyView(EventPermissionRequiredMixin, View):
+    permission = "can_change_event_settings"
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        event = request.event
+        source = get_object_or_404(
+            AttendanceCertificateLayout, organizer=event.organizer, pk=kwargs["layout"]
+        )
+        layout = source.copy_to_event(event, name=source.name)
+
+        activation = LayoutActivation.objects.filter(event=event, layout=source).first()
+        if activation is not None:
+            LayoutActivation.objects.create(
+                event=event,
+                layout=layout,
+                checkin_list_id=activation.checkin_list_id,
+                active=activation.active,
+            )
+        layout.log_action(
+            "pretix.plugins.pretix_attendance_certificate_neo.layout.changed",
+            user=request.user,
+            data={"name": layout.name, "copied_from": source.pk},
+        )
+        messages.success(request, _("The template has been copied to this event."))
+        return redirect(
+            "plugins:pretix_attendance_certificate_neo:layouts",
+            organizer=event.organizer.slug,
+            event=event.slug,
         )
 
 

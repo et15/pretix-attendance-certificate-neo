@@ -1,11 +1,15 @@
 import re
 
 import pytest
+from django.core.files.base import ContentFile
 from django.urls import reverse
 from django_scopes import scopes_disabled
-from pretix.base.models import Team, User
+from pretix.base.models import Organizer, Team, User
 
-from pretix_attendance_certificate_neo.models import AttendanceCertificateLayout
+from pretix_attendance_certificate_neo.models import (
+    AttendanceCertificateLayout,
+    LayoutActivation,
+)
 
 
 def _list_url(event):
@@ -18,6 +22,17 @@ def _list_url(event):
 def _toggle_url(event, layout):
     return reverse(
         "plugins:pretix_attendance_certificate_neo:layouts.toggle",
+        kwargs={
+            "organizer": event.organizer.slug,
+            "event": event.slug,
+            "layout": layout.pk,
+        },
+    )
+
+
+def _copy_url(event, layout):
+    return reverse(
+        "plugins:pretix_attendance_certificate_neo:layouts.copy",
         kwargs={
             "organizer": event.organizer.slug,
             "event": event.slug,
@@ -134,6 +149,74 @@ def test_toggle_requires_change_permission(client, event, organizer_layout):
     assert response.status_code != 302
     with scopes_disabled():
         assert not organizer_layout.active_events.filter(pk=event.pk).exists()
+
+
+@pytest.mark.django_db
+def test_copy_organizer_layout_to_event(
+    logged_in_client, event, organizer_layout, settings, tmp_path
+):
+    settings.MEDIA_ROOT = tmp_path
+    organizer_layout.layout = "[]"
+    organizer_layout.mail_subject = {"en": "Subject", "de": "Betreff"}
+    organizer_layout.mail_text = {"en": "Body", "de": "Text"}
+    background = b"%PDF-1.4"
+    organizer_layout.background.save("background.pdf", ContentFile(background))
+    with scopes_disabled():
+        checkin_list = event.checkin_lists.create(name="Passed")
+        LayoutActivation.objects.create(
+            event=event, layout=organizer_layout, checkin_list=checkin_list
+        )
+
+    url = _copy_url(event, organizer_layout)
+    page = logged_in_client.get(_list_url(event))
+    assert url in page.rendered_content
+    assert 'title="Copy to this event"' in page.rendered_content
+    assert logged_in_client.get(url).status_code == 405
+    response = logged_in_client.post(url, follow=True)
+    assert response.redirect_chain == [(_list_url(event), 302)]
+    copy = response.context["event_layouts"][0]["layout"]
+    assert copy.name == organizer_layout.name
+    assert copy.event_id == event.pk
+    assert copy.organizer_id is None
+    assert copy.layout == organizer_layout.layout
+    assert copy.mail_subject == organizer_layout.mail_subject
+    assert copy.mail_text == organizer_layout.mail_text
+    assert copy.background.name != organizer_layout.background.name
+    with copy.background.open("rb") as copied_background:
+        assert copied_background.read() == background
+    assert LayoutActivation.objects.get(event=event, layout=copy).checkin_list_id == (
+        checkin_list.pk
+    )
+    organizer_layout.refresh_from_db()
+    assert organizer_layout.event_id is None
+    assert organizer_layout.organizer_id == event.organizer_id
+
+
+@pytest.mark.django_db
+def test_copy_rejects_templates_outside_the_organizer_scope(
+    logged_in_client, event, layout
+):
+    organizer = Organizer.objects.create(name="Other", slug="other")
+    foreign_layout = AttendanceCertificateLayout.objects.create(
+        organizer=organizer, name="Other template"
+    )
+    for source in (layout, foreign_layout):
+        assert logged_in_client.post(_copy_url(event, source)).status_code == 404
+
+
+@pytest.mark.django_db
+def test_copy_requires_event_settings_permission(client, event, organizer_layout):
+    with scopes_disabled():
+        user = User.objects.create_user("viewer@dummy.dummy", "viewer")
+        team = Team.objects.create(organizer=event.organizer, can_view_orders=True)
+        team.members.add(user)
+        team.limit_events.add(event)
+    client.force_login(user)
+
+    url = _copy_url(event, organizer_layout)
+    assert url not in client.get(_list_url(event)).rendered_content
+    assert client.post(url).status_code == 403
+    assert not AttendanceCertificateLayout.objects.filter(event=event).exists()
 
 
 @pytest.mark.django_db
