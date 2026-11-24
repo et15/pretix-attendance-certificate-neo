@@ -55,8 +55,9 @@ coverage.xml
 # Ruff
 .ruff_cache/
 
-# uv: no lockfile on purpose. The test group follows pretix master, which a lock
-# would freeze; the supported Python floor is requires-python, not .python-version.
+# uv: no lockfile on purpose. Tests follow the newest pretix release (and master
+# in CI), which a lock would freeze; the supported Python floor is
+# requires-python, not .python-version.
 uv.lock
 .python-version
 
