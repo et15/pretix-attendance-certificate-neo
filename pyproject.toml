@@ -98,7 +98,7 @@ docstring-code-line-length = "dynamic"
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "1.0.1"
+version = "1.1.0"
 version_scheme = "pep440"
 version_provider = "commitizen"
 tag_format = "v$version"

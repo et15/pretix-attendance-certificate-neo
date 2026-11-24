@@ -1,3 +1,15 @@
+## v1.1.0 (2026-11-24)
+
+### Feat
+
+- start copied templates deactivated and check names on activation
+- keep template names unique per event; copy replaces the original
+- copy organizer certificate templates to an event
+
+### Fix
+
+- show template lists before certificate assignments
+
 ## v1.0.1 (2026-10-23)
 
 ### Fix
