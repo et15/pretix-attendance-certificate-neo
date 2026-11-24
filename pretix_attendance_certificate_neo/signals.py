@@ -198,12 +198,15 @@ def _self_service_links(event, order, position, secret):
 
 
 def _render_self_service(request, rows):
+    # Name the attendee whenever the page covers several tickets - even if only
+    # one of them has a certificate, the buttons must say whose it is.
+    show_names = len(rows) > 1
     rows = [r for r in rows if r["links"]]
     if not rows:
         return ""
     return mark_safe(
         get_template("pretix_attendance_certificate_neo/presale_certificates.html")
-        .render({"rows": rows}, request=request)
+        .render({"rows": rows, "show_names": show_names}, request=request)
         .strip()
     )
 

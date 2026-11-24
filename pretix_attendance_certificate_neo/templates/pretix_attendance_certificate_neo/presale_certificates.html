@@ -5,7 +5,7 @@
     </div>
     <div class="panel-body">
         {% for row in rows %}
-            {% if rows|length > 1 %}
+            {% if show_names %}
                 <p><strong>{{ row.position.attendee_name|default:row.position.item }}</strong></p>
             {% endif %}
             <p>

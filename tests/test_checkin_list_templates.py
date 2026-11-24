@@ -14,6 +14,7 @@ from pretix_attendance_certificate_neo.models import (
     LayoutActivation,
     certificate_options,
 )
+from pretix_attendance_certificate_neo.signals import presale_order_info
 from pretix_attendance_certificate_neo.views.presale import SELF_SERVICE_SETTING
 
 
@@ -523,6 +524,33 @@ def test_self_service_requires_the_attendee_to_have_been_checked_in(
     )
     content = client.get(_order_page(event, order)).content.decode()
     assert _self_service_url(event, order, pos_absent, layout) not in content
+
+
+def _self_service_box(event, order, rf):
+    """The plugin's "Certificate of attendance" box on the order page."""
+    with scopes_disabled():
+        return presale_order_info(sender=event, order=order, request=rf.get("/"))
+
+
+@pytest.mark.django_db
+def test_self_service_names_the_attendee_if_the_order_has_several_tickets(
+    rf, event, order, pos, pos_absent, layout, self_service
+):
+    # Only pos has a certificate, but the order has two tickets: the box must
+    # say whose certificate it is.
+    box = _self_service_box(event, order, rf)
+    assert _self_service_url(event, order, pos, layout) in box
+    assert "Marco Acierno" in box
+    assert "Absent Person" not in box
+
+
+@pytest.mark.django_db
+def test_self_service_omits_the_name_for_a_single_ticket(
+    rf, event, order, pos, layout, self_service
+):
+    box = _self_service_box(event, order, rf)
+    assert _self_service_url(event, order, pos, layout) in box
+    assert "Marco Acierno" not in box
 
 
 @pytest.mark.django_db
