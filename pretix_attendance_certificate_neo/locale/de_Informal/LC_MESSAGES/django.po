@@ -764,3 +764,36 @@ msgid ""
 msgstr ""
 "Das Zertifikat wurde entfernt. Teilnahmebescheinigungen werden nicht mehr "
 "signiert."
+
+msgid "Copy to this event"
+msgstr "In diese Veranstaltung kopieren"
+
+msgid "This template is active for events that already have an active template named \"{name}\": {events}. Active templates of an event need different names."
+msgstr "Diese Vorlage ist in Veranstaltungen aktiv, die bereits eine aktive Vorlage namens „{name}“ haben: {events}. Aktive Vorlagen einer Veranstaltung brauchen unterschiedliche Namen."
+
+msgid "This event already has an active template named \"{name}\". Active templates of an event need different names."
+msgstr "Diese Veranstaltung hat bereits eine aktive Vorlage namens „{name}“. Aktive Vorlagen einer Veranstaltung brauchen unterschiedliche Namen."
+
+msgid "The template \"{name}\" cannot be activated: this event already has an active template with the same name. Rename or deactivate one of them first."
+msgstr "Die Vorlage „{name}“ kann nicht aktiviert werden: Diese Veranstaltung hat bereits eine aktive Vorlage mit demselben Namen. Benenne zuerst eine der beiden um oder deaktiviere sie."
+
+msgid "The template \"{name}\" could not be copied because its background PDF is missing. Please ask an administrator of your organizer to upload the background of the organizer-wide template again."
+msgstr "Die Vorlage „{name}“ konnte nicht kopiert werden, weil ihre Hintergrund-PDF fehlt. Bitte eine Administratorin oder einen Administrator deines Veranstalters, den Hintergrund der veranstalterweiten Vorlage erneut hochzuladen."
+
+msgid "The template \"{name}\" has been copied to this event. The copy is deactivated: edit it and activate it when it is ready."
+msgstr "Die Vorlage „{name}“ wurde in diese Veranstaltung kopiert. Die Kopie ist deaktiviert: Bearbeite sie und aktiviere sie, sobald sie fertig ist."
+
+msgid "Another active template of this event already uses this name. Please choose a different name."
+msgstr "Eine andere aktive Vorlage dieser Veranstaltung verwendet diesen Namen bereits. Bitte wähle einen anderen Namen."
+
+msgid "An event in which this template is active already has an active template with this name. Please choose a different name."
+msgstr "Eine Veranstaltung, in der diese Vorlage aktiv ist, hat bereits eine aktive Vorlage mit diesem Namen. Bitte wähle einen anderen Namen."
+
+msgid "The certificate template \"{name}\" was created as a copy of the organizer-wide template \"{source}\"."
+msgstr "Die Bescheinigungsvorlage „{name}“ wurde als Kopie der veranstalterweiten Vorlage „{source}“ angelegt."
+
+msgid "The certificate template \"{layout}\" was activated for this event."
+msgstr "Die Bescheinigungsvorlage „{layout}“ wurde für diese Veranstaltung aktiviert."
+
+msgid "The certificate template \"{layout}\" was deactivated for this event."
+msgstr "Die Bescheinigungsvorlage „{layout}“ wurde für diese Veranstaltung deaktiviert."

@@ -4,6 +4,7 @@ from .views.editor import EditorView
 from .views.emails import SendCertificateEmailView
 from .views.event_templates import (
     EventLayoutAssignView,
+    EventLayoutCopyView,
     EventLayoutCreateView,
     EventLayoutDeleteView,
     EventLayoutListView,
@@ -50,6 +51,11 @@ urlpatterns = [
         r"^control/event/(?P<organizer>[^/]+)/(?P<event>[^/]+)/attendance-certificate/templates/(?P<layout>\d+)/toggle$",
         EventLayoutToggleView.as_view(),
         name="layouts.toggle",
+    ),
+    re_path(
+        r"^control/event/(?P<organizer>[^/]+)/(?P<event>[^/]+)/attendance-certificate/templates/(?P<layout>\d+)/copy$",
+        EventLayoutCopyView.as_view(),
+        name="layouts.copy",
     ),
     re_path(
         r"^control/event/(?P<organizer>[^/]+)/(?P<event>[^/]+)/attendance-certificate/templates/assign$",

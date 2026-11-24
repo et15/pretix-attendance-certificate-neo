@@ -1,6 +1,6 @@
 import string
 
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils.crypto import get_random_string
 from django.utils.translation import gettext_lazy as _
@@ -87,11 +87,105 @@ class AttendanceCertificateLayout(LoggedModel):
     def scope_organizer(self):
         return self.organizer or self.event.organizer
 
+    @transaction.atomic
+    def copy_to_event(self, event, *, name):
+        layout = AttendanceCertificateLayout.objects.create(
+            event=event,
+            name=name,
+            layout=self.layout,
+            mail_subject=self.mail_subject,
+            mail_text=self.mail_text,
+        )
+        if self.background:
+            with self.background.storage.open(self.background.name, "rb") as background:
+                layout.background.save("background.pdf", background)
+        return layout
+
     @classmethod
     def visible_to(cls, event):
         """All layouts an event may view/manage: its own plus every
         organizer-wide one, regardless of whether it has been activated."""
         return cls.objects.filter(Q(event=event) | Q(organizer=event.organizer))
+
+
+def _name_key(name):
+    """Compare template names the way an attendee reads them: ignoring case
+    and surrounding whitespace."""
+    return (name or "").strip().casefold()
+
+
+def same_name_layouts(event, name, exclude=None):
+    """Active templates of the event (see `available_layouts`) that already
+    use `name`. Names of active templates must be unique within an event,
+    otherwise attendees and admins cannot tell the certificates apart;
+    deactivated ones may share a name and are checked when activated."""
+    candidates = available_layouts(event)
+    if exclude is not None and exclude.pk:
+        candidates = candidates.exclude(pk=exclude.pk)
+    key = _name_key(name)
+    return [layout for layout in candidates if _name_key(layout.name) == key]
+
+
+def events_where_active(layout):
+    """Events in which the saved `layout` is currently offered."""
+    if layout.event_id:
+        deactivated = LayoutActivation.objects.filter(
+            layout=layout, event_id=layout.event_id, active=False
+        ).exists()
+        return [] if deactivated else [layout.event]
+    return [
+        activation.event
+        for activation in LayoutActivation.objects.filter(
+            layout=layout, active=True
+        ).select_related("event")
+    ]
+
+
+def taken_names(layout):
+    """Normalized names `layout` must not be renamed to, because another
+    active template uses them in an event where `layout` is active."""
+    return sorted(
+        {
+            _name_key(other.name)
+            for event in events_where_active(layout)
+            for other in available_layouts(event).exclude(pk=layout.pk)
+        }
+    )
+
+
+def name_conflict_error(layout, name, event=None):
+    """User-facing error if `name` is taken, else None. `event` is needed for
+    an event template that is not saved yet (new templates start active)."""
+    if layout.pk:
+        events = [
+            e for e in events_where_active(layout) if same_name_layouts(e, name, layout)
+        ]
+    else:
+        events = [event] if event and same_name_layouts(event, name) else []
+    if not events:
+        return None
+    if layout.organizer_id:
+        return _(
+            "This template is active for events that already have an active "
+            'template named "{name}": {events}. Active templates of an event '
+            "need different names."
+        ).format(name=name.strip(), events=", ".join(str(e.name) for e in events))
+    return _(
+        'This event already has an active template named "{name}". Active '
+        "templates of an event need different names."
+    ).format(name=name.strip())
+
+
+def activation_conflict_error(layout, event):
+    """User-facing error if activating `layout` for `event` would give the
+    event two active templates with the same name, else None."""
+    if not same_name_layouts(event, layout.name, layout):
+        return None
+    return _(
+        'The template "{name}" cannot be activated: this event already has an '
+        "active template with the same name. Rename or deactivate one of them "
+        "first."
+    ).format(name=layout.name)
 
 
 class TimestampMode(models.TextChoices):

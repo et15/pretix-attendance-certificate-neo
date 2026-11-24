@@ -1,0 +1,7 @@
+{% extends "pretixcontrol/pdf/index.html" %}
+{% load static %}
+{% block content %}
+    {{ block.super }}
+    {{ name_check|json_script:"attendance-certificate-name-check" }}
+    <script type="text/javascript" src="{% static "pretix_attendance_certificate_neo/editor_name_check.js" %}"></script>
+{% endblock %}

@@ -6,6 +6,7 @@ from pretix_attendance_certificate_neo.models import (
     AttendanceCertificateLayout,
     OrganizerSigningCertificate,
     TimestampMode,
+    name_conflict_error,
 )
 from pretix_attendance_certificate_neo.signing import (
     InvalidCertificate,
@@ -59,6 +60,13 @@ class OrganizerLayoutForm(FormPlaceholderMixin, forms.ModelForm):
                 self._set_field_placeholders(
                     fname, ["event", "order", "position_or_address"]
                 )
+
+    def clean_name(self):
+        name = self.cleaned_data["name"]
+        error = name_conflict_error(self.instance, name, event=self.event)
+        if error:
+            raise forms.ValidationError(error)
+        return name
 
 
 class SigningSettingsForm(forms.ModelForm):

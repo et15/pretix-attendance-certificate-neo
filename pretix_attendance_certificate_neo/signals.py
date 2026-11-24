@@ -1,5 +1,3 @@
-import copy
-
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from django.template.loader import get_template
@@ -165,12 +163,7 @@ def copy_attendance_certificate_data(sender, other, **kwargs):
         )
 
     for old_layout in other.attendance_certificate_layouts.all():
-        new_layout = copy.copy(old_layout)
-        new_layout.pk = None
-        new_layout.event = sender
-        new_layout.save()
-        if old_layout.background and old_layout.background.name:
-            new_layout.background.save("background.pdf", old_layout.background)
+        new_layout = old_layout.copy_to_event(sender, name=old_layout.name)
         copy_settings(old_layout, new_layout)
 
     if sender.organizer_id == other.organizer_id:
@@ -300,6 +293,34 @@ def pretix_logentry_display(sender, logentry, **kwargs):
         == "pretix.plugins.pretix_attendance_certificate_neo.layout.deleted"
     ):
         return _("A certificate of attendance template has been deleted.")
+
+    if (
+        logentry.action_type
+        == "pretix.plugins.pretix_attendance_certificate_neo.layout.copied"
+    ):
+        return _(
+            'The certificate template "{name}" was created as a copy of the '
+            'organizer-wide template "{source}".'
+        ).format(
+            name=logentry.parsed_data.get("name"),
+            source=logentry.parsed_data.get("source"),
+        )
+
+    if (
+        logentry.action_type
+        == "pretix.plugins.pretix_attendance_certificate_neo.layout.enabled"
+    ):
+        return _(
+            'The certificate template "{layout}" was activated for this event.'
+        ).format(layout=logentry.parsed_data.get("layout"))
+
+    if (
+        logentry.action_type
+        == "pretix.plugins.pretix_attendance_certificate_neo.layout.disabled"
+    ):
+        return _(
+            'The certificate template "{layout}" was deactivated for this event.'
+        ).format(layout=logentry.parsed_data.get("layout"))
 
     if (
         logentry.action_type
