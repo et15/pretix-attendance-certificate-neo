@@ -18,49 +18,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
-      - uses: actions/cache@v6
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Install pretix
-        run: pip3 install uv && uv pip install --system pretix
-      - name: Install Dependencies
-        run: uv pip install --system -U ruff -e .
+          python-version: "3.14"
       - name: Run ruff format --check
-        run: ruff format --check .
+        run: uv run --only-group dev ruff format --check .
       - name: Run ruff check
-        run: ruff check .
+        run: uv run --only-group dev ruff check .
   packaging:
     name: packaging
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v7
+      - uses: astral-sh/setup-uv@v7
         with:
-          python-version: "3.11"
-      - uses: actions/cache@v6
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-      - name: Install pretix
-        run: pip3 install uv && uv pip install --system pretix
-      - name: Install Dependencies
-        run: uv pip install --system -U twine check-manifest pretix-plugin-build setuptools build -e .
+          python-version: "3.14"
+      - name: Install system dependencies
+        run: sudo apt update && sudo apt install gettext
       - name: Run check-manifest
-        run: check-manifest .
-        working-directory: .
+        run: uvx --with build --with setuptools --with pretix-plugin-build check-manifest .
       - name: Build package
-        run: python setup.py sdist
-        working-directory: .
+        run: uv build
       - name: Check package
-        run: twine check dist/*
-        working-directory: .
+        run: uvx twine check dist/*
