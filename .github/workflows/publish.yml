@@ -9,15 +9,19 @@ jobs:
     name: Build package
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          # No uv cache in the release workflow: it would never speed things
+          # up much and a restored cache could slip into a published build.
+          enable-cache: false
       - name: Install system dependencies
         run: sudo apt update && sudo apt install gettext
       - name: Build package
         run: uv build
       - name: Check package
         run: uvx twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
@@ -30,8 +34,12 @@ jobs:
     permissions:
       id-token: write  # Trusted Publishing, no API token needed
     steps:
-      - uses: astral-sh/setup-uv@v5
-      - uses: actions/download-artifact@v4
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
+          # This job only needs dist/, so nothing is checked out.
+          ignore-empty-workdir: true
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
@@ -45,8 +53,8 @@ jobs:
     permissions:
       contents: write  # create the release and upload the files
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: dist
           path: dist/
