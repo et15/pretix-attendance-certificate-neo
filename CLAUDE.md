@@ -25,7 +25,8 @@ If the upstream checklist changes, it wins over this copy.
 5. Registered URLs are unlikely to clash with other plugins or future core URLs.
 
 ### C. Security
-1. Important actions are logged (`log_action`) and a `logentry_display` receiver renders every action type used.
+1. Important actions are logged (`log_action`) and every action type used has a human-readable text, registered
+   via the `log_entry_types` registry (pretix deprecated the `logentry_display` signal for new types).
 2. All views require appropriate permissions and use `event_urls` / `event_patterns` where appropriate.
 3. Customer session data uses the cart session system where appropriate.
 4. Payment providers: no card numbers stored; refunds are notified via webhook; webhooks are signature-verified or not trusted (data re-fetched from the API).
@@ -45,7 +46,8 @@ If the upstream checklist changes, it wins over this copy.
 3. Checkout steps are tested together with the pretix widget.
 
 ### G. Code quality
-1. isort and flake8 style is enforced (here via ruff with the `I`, `E`, `W` and `F` rules: `ruff format --check . && ruff check .`).
+1. isort and flake8 style is enforced (here via ruff, rule set in `pyproject.toml`:
+   `uv run ruff format --check . && uv run ruff check .`).
 2. Unit tests for important business logic.
 3. Functional tests for important interface parts.
 4. Tests that permission checks work.
