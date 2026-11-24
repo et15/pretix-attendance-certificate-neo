@@ -13,6 +13,36 @@ original plugin; data of the original plugin is not taken over.
 
 pretix 2026.7.0 or newer and Python 3.11 or newer.
 
+## Templates
+
+Templates either belong to one event or are managed organizer-wide (*Certificate
+templates* in the organizer settings) and activated per event. A template can be
+tied to a check-in list, so only attendees checked in on that list are eligible
+for it; attendees can be eligible for several templates.
+
+![Certificate of attendance templates of an event](https://raw.githubusercontent.com/et15/pretix-attendance-certificate-neo/main/docs/screenshots/event-templates.png)
+
+## Sending certificates
+
+*Send out certificates* emails a template's certificate to all attendees with an
+admission ticket (for a template tied to a check-in list, only to those checked
+in on it). Subject and text can be filled from the template's own email text.
+
+![Sending certificates by email](https://raw.githubusercontent.com/et15/pretix-attendance-certificate-neo/main/docs/screenshots/send.png)
+
+In the order details, every attendee gets buttons to download or email each
+template; templates the attendee is not eligible for are greyed out.
+
+<img src="https://raw.githubusercontent.com/et15/pretix-attendance-certificate-neo/main/docs/screenshots/order-backend.png" alt="Certificate buttons per attendee in the order details" width="600">
+
+## Self-service download
+
+Optionally attendees can download their certificates from their order page:
+only for paid orders, after the event is over, and only for attendees who were
+checked in (on the template's check-in list, if it is tied to one).
+
+![Certificate download on the customer's order page](https://raw.githubusercontent.com/et15/pretix-attendance-certificate-neo/main/docs/screenshots/order-customer.png)
+
 ## Formatting in the certificate text
 
 The free text of the text fields in the layout editor ("Other…" and "Other…
@@ -28,6 +58,12 @@ is set in a monospace font provided by pretix (a font family with "Mono",
 "Courier" or "Code" in its name, e.g. from a font plugin) if there is one, and in
 the font of the field otherwise.
 
+![Layout editor with a Markdown text field](https://raw.githubusercontent.com/et15/pretix-attendance-certificate-neo/main/docs/screenshots/editor.png)
+
+The resulting certificate:
+
+<img src="https://raw.githubusercontent.com/et15/pretix-attendance-certificate-neo/main/docs/screenshots/certificate.png" alt="Rendered certificate of attendance" width="450">
+
 ## Digital signature
 
 Organizers can sign all certificates of attendance with a certificate of their
@@ -35,6 +71,8 @@ organization (PAdES signature, added with [pyHanko](https://github.com/MatthiasV
 Open *Certificate templates* in the organizer settings and choose
 *Digital signature*; there you can create a self-signed certificate or import a
 `.p12`/`.pfx` file.
+
+![Digital signature settings of an organizer](https://raw.githubusercontent.com/et15/pretix-attendance-certificate-neo/main/docs/screenshots/signing.png)
 
 With a self-signed certificate, PDF readers show the signer as unknown until the
 public certificate (downloadable on the same page) is added to their trusted
